@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GeoKat | Global Professional Gaming Alliance Platform</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #02040a; overflow: hidden; user-select: none; }
+    .glass-hud { background: rgba(6, 11, 25, 0.85); backdrop-filter: blur(14px); border: 1px solid rgba(56, 189, 248, 0.22); }
+    .glow-cyan { text-shadow: 0 0 12px rgba(6, 182, 212, 0.65); }
+    .glow-rose { text-shadow: 0 0 12px rgba(244, 63, 94, 0.65); }
+    .glow-gold { text-shadow: 0 0 12px rgba(234, 179, 8, 0.65); }
+    #canvas3d { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+    .reticle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 10; }
+    .radar-container { width: 110px; height: 110px; border-radius: 9999px; position: relative; background: radial-gradient(circle, rgba(6,182,212,0.12) 0%, rgba(2,6,23,0.9) 70%); border: 1.5px solid rgba(6, 182, 212, 0.4); overflow: hidden; }
+    .radar-sweep { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; border-right: 2px solid rgba(6,182,212,0.8); animation: sweep 3s linear infinite; transform-origin: center; }
+    @keyframes sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="text-slate-100 relative w-screen h-screen">
+
+  <!-- 3D Canvas -->
+  <div id="canvas3d"></div>
+
+  <!-- Reticle -->
+  <div id="reticle" class="reticle flex items-center justify-center pointer-events-none">
+    <div class="w-7 h-7 border border-cyan-400/50 rounded-full flex items-center justify-center transition-all duration-150" id="reticleRing">
+      <div class="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-lg shadow-cyan-400"></div>
+    </div>
+  </div>
+
+  <!-- Top Global Navigation & Status Bar -->
+  <header class="absolute top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
+    <div class="glass-hud rounded-2xl px-4 py-2.5 pointer-events-auto flex items-center gap-3 border border-cyan-500/40 shadow-xl">
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
+        <span class="font-extrabold tracking-wider text-sm md:text-base text-white">GeoKat <span class="text-rose-500 glow-rose">ALLIANCE</span></span>
+      </div>
+      <div class="h-5 w-px bg-slate-700 hidden sm:block"></div>
+      <div class="hidden sm:flex items-center gap-3 text-xs">
+        <span class="text-slate-400">ACT: <strong id="hudActTitle" class="text-amber-400 font-mono font-bold">1: MONOLITH SHADOW</strong></span>
+        <span class="text-slate-400">FRS: <strong id="hudFRS" class="text-emerald-400 font-mono">82.0</strong></span>
+        <span class="text-slate-400">SURPLUS: <strong id="hudRf" class="text-amber-400 font-mono">1.20x Rf</strong></span>
+        <span class="text-slate-400">DECOUPLING: <strong id="hudPsi" class="text-cyan-400 font-mono">0.12 Ψ</strong></span>
+      </div>
+    </div>
+
+    <!-- Right Controls: View, Audio, Save/Load, Menu -->
+    <div class="flex items-center gap-2 pointer-events-auto">
+      <button id="btnViewToggle" class="glass-hud hover:bg-cyan-950/80 text-cyan-300 font-bold text-xs px-3.5 py-2 rounded-xl border border-cyan-500/50 flex items-center gap-1.5 transition-all active:scale-95 shadow-lg">
+        <span id="viewIcon">🌐</span> <span id="viewModeText" class="hidden sm:inline">SCOPE OUT</span>
+      </button>
+      <button id="btnScanner" class="glass-hud hover:bg-slate-800 text-cyan-300 text-xs px-3 py-2 rounded-xl border border-cyan-500/40 font-bold active:scale-95">
+        📡 PING [Q]
+      </button>
+      <button id="btnFlashlight" class="glass-hud hover:bg-slate-800 text-amber-300 text-xs px-3 py-2 rounded-xl border border-amber-500/40 font-bold active:scale-95">
+        🔦 LIGHT [F]
+      </button>
+      <button id="btnSaveState" class="glass-hud hover:bg-emerald-950 text-emerald-300 text-xs px-3 py-2 rounded-xl border border-emerald-500/50 font-bold active:scale-95">
+        💾 SAVE STATE
+      </button>
+      <button id="btnLoadState" class="glass-hud hover:bg-blue-950 text-blue-300 text-xs px-3 py-2 rounded-xl border border-blue-500/50 font-bold active:scale-95">
+        📂 LOAD
+      </button>
+      <button id="btnSoundToggle" class="glass-hud hover:bg-slate-800 text-slate-300 p-2 rounded-xl border border-slate-700 text-xs">
+        🔊 ON
+      </button>
+      <button id="btnHelp" class="glass-hud hover:bg-slate-800 text-rose-300 p-2 rounded-xl border border-rose-500/40 text-xs font-bold">
+        🦁 STORY
+      </button>
+    </div>
+  </header>
+
+  <!-- Hidden File Input for State Loading -->
+  <input type="file" id="fileStateInput" accept=".json" class="hidden">
+
+  <!-- Left Side: Decentralized P2P Gossip Comms & Network Mesh -->
+  <aside class="absolute left-4 top-20 bottom-24 w-72 md:w-80 glass-hud rounded-2xl p-3.5 z-20 hidden md:flex flex-col justify-between border border-slate-700/60 pointer-events-auto shadow-2xl">
+    <div class="flex flex-col h-full">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+        <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>P2P Gossip Network</span>
+        </h3>
+        <span id="p2pStatusBadge" class="text-[10px] text-emerald-400 font-mono bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">Direct BroadcastChannel</span>
+      </div>
+
+      <!-- Real-time Multi-Instance Sync Indicator -->
+      <div class="bg-black/50 p-2 rounded-lg border border-cyan-500/20 text-[11px] text-cyan-300 mb-2 font-mono flex items-center justify-between">
+        <span>Linked Tabs/Peers:</span>
+        <span id="linkedPeerCount" class="font-bold text-white">1 (Local Active)</span>
+      </div>
+
+      <!-- Scrollable P2P Comms Log -->
+      <div id="chatFeed" class="flex-1 overflow-y-auto space-y-2 pr-1 text-xs">
+        <div class="bg-slate-900/60 p-2 rounded-lg border-l-2 border-rose-500">
+          <span class="text-rose-400 font-bold">[LegacyGatekeeper]:</span>
+          <p class="text-slate-300 text-[11px] mt-0.5">All independent telemetry must be routed to central HQ. Unsanctioned peer links will be audited!</p>
+        </div>
+        <div class="bg-slate-900/60 p-2 rounded-lg border-l-2 border-cyan-400">
+          <span class="text-cyan-400 font-bold">[AlgorithmicScout_14]:</span>
+          <p class="text-slate-300 text-[11px] mt-0.5">Ignore the Monolith! I'm sharing localized friction logs in Zone 1. Press E at my pod to sync!</p>
+        </div>
+        <div class="bg-slate-900/60 p-2 rounded-lg border-l-2 border-amber-400">
+          <span class="text-amber-400 font-bold">[EuroTacticsPod]:</span>
+          <p class="text-slate-300 text-[11px] mt-0.5">Reciprocal playbooks are ready. When you transmit ground truth, we push back automated counters (Rf &gt; 1.0)!</p>
+        </div>
+      </div>
+
+      <!-- P2P Broadcast Input Box -->
+      <div class="mt-2.5 pt-2 border-t border-slate-800 flex gap-1.5">
+        <input id="chatInput" type="text" placeholder="Broadcast P2P signal..." class="flex-1 bg-slate-950/80 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-400">
+        <button id="btnSendSignal" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-bold transition-all shadow-md active:scale-95">
+          PING
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Side: Mini-Map Radar & Progressive Story Quest Tracker -->
+  <aside class="absolute right-4 top-20 w-72 md:w-80 glass-hud rounded-2xl p-4 z-20 hidden lg:flex flex-col gap-3.5 border border-slate-700/60 pointer-events-auto shadow-2xl">
+    
+    <!-- Mini-Map Radar -->
+    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+      <div>
+        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Tactical Mini-Map</h3>
+        <p class="text-[10px] text-slate-400">Real-time local node proximity</p>
+      </div>
+      <div class="radar-container" id="radarScreen">
+        <div class="radar-sweep"></div>
+        <div class="absolute w-2 h-2 rounded-full bg-cyan-400 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-md shadow-cyan-400" title="You"></div>
+        <div id="radarBlips"></div>
+      </div>
+    </div>
+
+    <!-- Active Campaign Storyline Tracker -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <h4 class="text-xs font-bold text-white uppercase tracking-wider">Active Story Quest</h4>
+        <span id="questBadge" class="text-[10px] text-cyan-300 font-mono font-bold bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">OBJECTIVE 1</span>
+      </div>
+
+      <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex flex-col gap-1.5">
+        <h5 id="activeQuestTitle" class="text-xs font-bold text-cyan-300">1. Transmit Frontline Telemetry</h5>
+        <p id="activeQuestDesc" class="text-[11px] text-slate-300 leading-relaxed">
+          Walk up to <strong>Algorithmic Scout #14</strong> (blue beacon) and press <kbd class="px-1 py-0.5 bg-slate-800 rounded text-cyan-300">E</kbd> to upload your first unedited operational signal.
+        </p>
+        <div class="w-full bg-slate-950 rounded-full h-1.5 mt-1 overflow-hidden border border-slate-800">
+          <div id="questProgressBar" class="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full w-[25%] transition-all duration-300"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player Capability & Inventory Bag -->
+    <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
+      <div>
+        <span class="text-slate-400">Playbooks:</span>
+        <strong id="invPlaybooks" class="text-amber-400 font-mono font-bold ml-1">0</strong>
+      </div>
+      <div>
+        <span class="text-slate-400">Sybils Neutralized:</span>
+        <strong id="invSybils" class="text-rose-400 font-mono font-bold ml-1">0 / 3</strong>
+      </div>
+      <div>
+        <span class="text-slate-400">Orthogonality:</span>
+        <strong id="invOrthogonality" class="text-emerald-400 font-mono font-bold ml-1">0.68</strong>
+      </div>
+    </div>
+
+    <!-- Dynamic In-Game Toast -->
+    <div id="gameToast" class="hidden p-2.5 rounded-lg bg-emerald-950/90 border border-emerald-500/60 text-xs text-emerald-200 animate-fade-in font-medium flex items-center gap-2">
+      <span>✨</span> <span id="toastMessage">State saved successfully!</span>
+    </div>
+  </aside>
+
+  <!-- Bottom Interaction Prompt & Action HUD -->
+  <footer class="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
+    <!-- Controls Bar -->
+    <div class="glass-hud px-4 py-2.5 rounded-xl text-xs text-slate-300 flex flex-wrap items-center gap-3 border border-slate-800 pointer-events-auto shadow-xl">
+      <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-cyan-300 font-mono">W A S D</kbd> Move</span>
+      <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-cyan-300 font-mono">SHIFT</kbd> Sprint</span>
+      <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-cyan-300 font-mono">C</kbd> Crouch</span>
+      <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-amber-300 font-mono">SPACE</kbd> Jump</span>
+      <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-emerald-300 font-mono">E</kbd> Interact</span>
+      <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-cyan-300 font-mono">Q</kbd> Radar Ping</span>
+      <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-amber-300 font-mono">F</kbd> Light</span>
+    </div>
+
+    <!-- Quick Proximity Interaction Prompt -->
+    <div id="interactPrompt" class="hidden glass-hud px-5 py-3 rounded-xl text-xs font-bold text-white bg-cyan-950/95 border-2 border-cyan-400 flex items-center gap-3 animate-bounce pointer-events-auto shadow-2xl">
+      <span>Press <kbd class="px-2 py-0.5 bg-cyan-600 rounded text-white font-mono">E</kbd> to Converse with <span id="interactTargetName" class="text-cyan-300">Lattice Node</span></span>
+      <button id="btnQuickInteract" class="px-3.5 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black rounded-lg active:scale-95">INTERACT</button>
+    </div>
+
+    <!-- Touch Mobile Joystick Controls -->
+    <div class="flex md:hidden items-center gap-2 pointer-events-auto">
+      <button id="btnMobileFwd" class="w-12 h-12 bg-slate-800/85 rounded-full text-white font-bold border border-cyan-500/50 flex items-center justify-center active:bg-cyan-600 text-sm shadow-lg">▲</button>
+      <div class="flex flex-col gap-1">
+        <button id="btnMobileLeft" class="w-10 h-10 bg-slate-800/85 rounded-full text-white font-bold border border-cyan-500/50 flex items-center justify-center active:bg-cyan-600 text-xs shadow-lg">◀</button>
+        <button id="btnMobileRight" class="w-10 h-10 bg-slate-800/85 rounded-full text-white font-bold border border-cyan-500/50 flex items-center justify-center active:bg-cyan-600 text-xs shadow-lg">▶</button>
+      </div>
+      <button id="btnMobileBack" class="w-12 h-12 bg-slate-800/85 rounded-full text-white font-bold border border-cyan-500/50 flex items-center justify-center active:bg-cyan-600 text-sm shadow-lg">▼</button>
+    </div>
+  </footer>
+
+  <!-- Node Dialogue & Capability Exchange Modal -->
+  <div id="dialogueModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-hud w-full max-w-lg rounded-2xl p-6 border-2 border-cyan-500/60 shadow-2xl flex flex-col gap-4 relative animate-scale-up">
+      <button id="btnCloseModal" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      
+      <div class="flex items-center gap-3 border-b border-slate-800 pb-3">
+        <div id="modalAvatarRing" class="w-12 h-12 rounded-full bg-cyan-950 border-2 border-cyan-400 flex items-center justify-center text-xl font-black text-cyan-300">
+          🎮
+        </div>
+        <div>
+          <h2 id="modalNodeName" class="text-lg font-bold text-white">Algorithmic Scout #14</h2>
+          <span id="modalNodeRole" class="text-xs text-cyan-400 font-mono">Frontline Tactical Observer (Edge Tier)</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-950/85 rounded-xl p-4 border border-slate-800">
+        <p id="modalDialogueText" class="text-sm text-slate-200 leading-relaxed font-mono">
+          "The Gatekeeper claims solo authority, but Scott Page's Diversity Prediction Theorem proves that diverse frontline nodes structurally drive down collective error. Ready to feed raw telemetry directly into our decentralized peer lattice?"
+        </p>
+      </div>
+
+      <!-- Action Choice Matrix -->
+      <div class="flex flex-col gap-2">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Collaborative Action:</span>
+        <button id="btnActionExchange" class="p-3 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 rounded-xl text-left text-xs text-white transition-all flex items-center justify-between active:scale-95">
+          <span>📡 <strong>Transmit Frontline Signal:</strong> Upload local field data to quadratic consensus</span>
+          <span class="text-cyan-400 font-mono font-bold">+18 FRS / Progress</span>
+        </button>
+        <button id="btnActionPlaybook" class="p-3 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 rounded-xl text-left text-xs text-white transition-all flex items-center justify-between active:scale-95">
+          <span>🛡️ <strong>Claim Reciprocal Playbook:</strong> Receive automated counter-strategy (Rf Uplift)</span>
+          <span class="text-emerald-400 font-mono font-bold">+0.45x Rf</span>
+        </button>
+        <button id="btnActionAudit" class="p-3 bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 rounded-xl text-left text-xs text-white transition-all flex items-center justify-between active:scale-95">
+          <span>🔍 <strong>Run Byzantine Integrity Audit:</strong> Calculate Brier calibration & check astroturf bots</span>
+          <span class="text-rose-400 font-mono font-bold">Audit Calibration</span>
+        </button>
+      </div>
+
+      <div id="modalFeedback" class="text-xs text-emerald-300 bg-emerald-950/60 p-2.5 rounded-lg border border-emerald-600/60 hidden font-mono">
+        Signal verified! Scott Page Theorem applied: Arena Collective Error reduced by 14%!
+      </div>
+    </div>
+  </div>
+
+  <!-- Story Mission & Manifesto Modal -->
+  <div id="helpModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-hud w-full max-w-xl rounded-2xl p-6 border-2 border-rose-500/60 shadow-2xl flex flex-col gap-4 relative max-h-[90vh] overflow-y-auto">
+      <button id="btnCloseHelp" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg font-bold">✕</button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-full bg-rose-950 border-2 border-rose-500 flex items-center justify-center text-2xl shadow-lg shadow-rose-500/30">🦁</div>
+        <div>
+          <h2 class="text-xl font-black text-white tracking-wide">WE UNITE. WE HAVE NO LIMITS.</h2>
+          <p class="text-xs text-rose-400 font-bold uppercase tracking-wider">Global Professional Gaming Alliance Platform</p>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-xs text-slate-300 leading-relaxed border-t border-slate-800 pt-3">
+        <p>
+          Welcome to the next evolution of competitive gaming. In the old system, single-expert keynote speakers and corporate cartels extract your gameplay telemetry, claim brand authority, and sell your data back to you.
+        </p>
+        <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800 space-y-2">
+          <h4 class="font-bold text-cyan-300 text-sm">Campaign Acts:</h4>
+          <p>• <strong>Act 1: The Monolith's Shadow:</strong> Wake up inside the arena and connect with Algorithmic Scout #14 to establish your first un-censored telemetry line.</p>
+          <p>• <strong>Act 2: Weaving the Lattice:</strong> Collaborate with EuroTactics Pod and Apex Strategist to achieve high prediction diversity and trigger a reciprocal capability surplus (<span class="text-amber-400 font-bold">Rf &gt; 1.0</span>).</p>
+          <p>• <strong>Act 3: Astroturf Infiltration:</strong> Detect and audit 3 coordinated Byzantine Sybil bots trying to skew tournament consensus.</p>
+          <p>• <strong>Act 4: Transcendence & Decoupling:</strong> Confront the Legacy Gatekeeper Hub with the united power of the peer collective, shattering the central bottleneck (<span class="text-cyan-400 font-bold">Ψ &gt; 1.0</span>)!</p>
+        </div>
+        <p class="text-slate-400 text-[11px]">
+          💾 <strong>Save State Support:</strong> Your progress auto-saves locally. You can also export and import <code class="text-emerald-400">.json</code> save files to share your campaign progression with friends!
+        </p>
+      </div>
+
+      <button id="btnStartGame" class="w-full py-3.5 bg-gradient-to-r from-rose-600 via-amber-600 to-cyan-600 hover:from-rose-500 hover:to-cyan-500 text-white font-extrabold text-sm rounded-xl shadow-lg transition-all active:scale-95 tracking-wider">
+        COMMENCE CAMPAIGN
+      </button>
+    </div>
+  </div>
+
+  <!-- JavaScript Game Engine & P2P Gossip Fabric -->
+  <script>
+    // --------------------------------------------------------------------------
+    // 1. Procedural Web Audio Synthesizer (Zero External File Dependencies)
+    // --------------------------------------------------------------------------
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playTone(freq, type = 'sine', duration = 0.15, gainVal = 0.1) {
+      if (!soundEnabled || !audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function soundFootstep() { playTone(95 + Math.random() * 30, 'triangle', 0.05, 0.04); }
+    function soundJump() { playTone(240, 'sine', 0.18, 0.09); }
+    function soundLand() { playTone(80, 'triangle', 0.12, 0.08); }
+    function soundSonarPing() {
+      playTone(1200, 'sine', 0.35, 0.08);
+      setTimeout(() => playTone(1600, 'sine', 0.45, 0.06), 80);
+    }
+    function soundFlashlight() { playTone(800, 'square', 0.04, 0.05); }
+    function soundSuccess() {
+      playTone(440, 'triangle', 0.15, 0.1);
+      setTimeout(() => playTone(554.37, 'triangle', 0.15, 0.1), 100);
+      setTimeout(() => playTone(659.25, 'triangle', 0.25, 0.12), 200);
+    }
+    function soundAlarm() {
+      playTone(320, 'sawtooth', 0.15, 0.09);
+      setTimeout(() => playTone(280, 'sawtooth', 0.15, 0.09), 100);
+    }
+    function soundChime() {
+      playTone(880, 'sine', 0.2, 0.08);
+      setTimeout(() => playTone(1174.66, 'sine', 0.3, 0.08), 120);
+    }
+
+    // --------------------------------------------------------------------------
+    // 2. Game State & Progressive Campaign Model
+    // --------------------------------------------------------------------------
+    const defaultState = {
+      act: 1,
+      actTitle: "1: MONOLITH SHADOW",
+      questIndex: 1,
+      questTitle: "1. Transmit Frontline Telemetry",
+      questDesc: "Walk up to Algorithmic Scout #14 (blue beacon) and press E to upload your first unedited operational signal.",
+      questProgressPct: 25,
+      player: {
+        pos: { x: 0, y: 1.6, z: 14 },
+        yaw: 0,
+        pitch: 0,
+        frs: 82.0,
+        rf: 1.20,
+        psi: 0.12,
+        playbooks: 0,
+        sybilsNeutralized: 0,
+        orthogonality: 0.68,
+        signalsTransmitted: 0
+      },
+      flashlight: true,
+      nodesState: [
+        { id: 1, status: "active" },
+        { id: 2, status: "locked" },
+        { id: 3, status: "locked" },
+        { id: 4, status: "active" }, // Sybil 1
+        { id: 5, status: "active" }, // Gatekeeper Boss
+        { id: 6, status: "active" }, // Sybil 2
+        { id: 7, status: "active" }  // Sybil 3
+      ]
+    };
+
+    let gameState = JSON.parse(JSON.stringify(defaultState));
+
+    // Try restoring state from LocalStorage
+    try {
+      const saved = localStorage.getItem('geokat_savestate_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        gameState = Object.assign(gameState, parsed);
+      }
+    } catch (e) {}
+
+    // --------------------------------------------------------------------------
+    // 3. Decentralized P2P Network Fabric (BroadcastChannel for Cross-Tab Sync)
+    // --------------------------------------------------------------------------
+    const p2pChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('geokat_alliance_p2p') : null;
+    let peerTabCount = 1;
+
+    if (p2pChannel) {
+      // Broadcast heartbeat every 2.5s
+      setInterval(() => {
+        p2pChannel.postMessage({
+          type: 'PING',
+          sender: 'PeerTab_' + Math.floor(Math.random() * 1000),
+          pos: gameState.player.pos,
+          frs: gameState.player.frs
+        });
+      }, 2500);
+
+      p2pChannel.onmessage = (event) => {
+        const data = event.data;
+        if (data.type === 'PING') {
+          peerTabCount = Math.min(8, peerTabCount + 1);
+          document.getElementById('linkedPeerCount').textContent = `${peerTabCount} (Cross-Tab Linked)`;
+          document.getElementById('p2pStatusBadge').className = "text-[10px] text-cyan-300 font-mono bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800 animate-pulse";
+        } else if (data.type === 'CHAT') {
+          addChatMessage(data.sender, data.text);
+          soundSonarPing();
+        } else if (data.type === 'SIGNAL_BROADCAST') {
+          addChatMessage("P2P Mesh", `Signal consensus received from ${data.sender}. Collective precision boosted!`);
+          soundChime();
+        }
+      };
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. Three.js 3D Virtual Reality Environment & Physics Engine
+    // --------------------------------------------------------------------------
+    let scene, camera, renderer, headlampLight, geodesicMeshGroup, particleGroup;
+    let groundGrid, radarBlipsContainer;
+    const canvasContainer = document.getElementById('canvas3d');
+
+    const movement = {
+      velocity: new THREE.Vector3(),
+      keys: { w: false, a: false, s: false, d: false, space: false, shift: false, c: false },
+      touch: { forward: false, backward: false, left: false, right: false },
+      isCrouching: false,
+      stepTimer: 0
+    };
+
+    let viewMode = 'player'; // 'player' or 'scope'
+    let interactiveNodes = [];
+    let currentTargetNode = null;
+
+    function initThreeJS() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x02040b);
+      scene.fog = new THREE.FogExp2(0x02040b, 0.022);
+
+      camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(gameState.player.pos.x, gameState.player.pos.y, gameState.player.pos.z);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      canvasContainer.appendChild(renderer.domElement);
+
+      // Ambient & Arena Lighting
+      const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+      scene.add(ambient);
+
+      // Player Headlamp / Flashlight
+      headlampLight = new THREE.SpotLight(0xfffaed, 2.8, 45, Math.PI / 5, 0.4, 1);
+      headlampLight.position.copy(camera.position);
+      scene.add(headlampLight);
+      scene.add(headlampLight.target);
+
+      // Central Pillar Beacon
+      const centerPillar = new THREE.PointLight(0x06b6d4, 3.0, 70);
+      centerPillar.position.set(0, 16, 0);
+      scene.add(centerPillar);
+
+      // Arena Grid Floor
+      groundGrid = new THREE.GridHelper(90, 45, 0x06b6d4, 0x1e293b);
+      groundGrid.position.y = 0;
+      scene.add(groundGrid);
+
+      // Outer Holographic Bounds Ring
+      const ringGeo = new THREE.RingGeometry(42, 43.5, 64);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, side: THREE.DoubleSide });
+      const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+      ringMesh.rotation.x = Math.PI / 2;
+      ringMesh.position.y = 0.05;
+      scene.add(ringMesh);
+
+      // Build Overhead 3D Geodesic Lattice Sphere
+      buildGeodesicSphere();
+
+      // Cyber Dust Particles
+      buildParticles();
+
+      // Spawn Story Interactive Nodes
+      spawnNodes();
+
+      // Setup Inputs & Listeners
+      setupInputHandlers();
+      window.addEventListener('resize', onWindowResize);
+
+      // Update HUD values from state
+      updateHUD();
+
+      // Start Physics & Render Loop
+      clock = new THREE.Clock();
+      animateLoop();
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function buildGeodesicSphere() {
+      geodesicMeshGroup = new THREE.Group();
+      scene.add(geodesicMeshGroup);
+
+      const radius = 32;
+      const sphereGeo = new THREE.IcosahedronGeometry(radius, 2);
+      const wireMat = new THREE.MeshBasicMaterial({
+        color: 0x0284c7,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.22
+      });
+      const dome = new THREE.Mesh(sphereGeo, wireMat);
+      dome.position.set(0, 14, 0);
+      geodesicMeshGroup.add(dome);
+
+      const vertPos = sphereGeo.attributes.position;
+      const dotGeo = new THREE.SphereGeometry(0.38, 8, 8);
+      for (let i = 0; i < vertPos.count; i += 3) {
+        const dotMat = new THREE.MeshStandardMaterial({
+          color: i % 8 === 0 ? 0xf59e0b : 0x06b6d4,
+          emissive: i % 8 === 0 ? 0xf59e0b : 0x06b6d4,
+          emissiveIntensity: 0.75
+        });
+        const dot = new THREE.Mesh(dotGeo, dotMat);
+        dot.position.set(vertPos.getX(i), vertPos.getY(i) + 14, vertPos.getZ(i));
+        geodesicMeshGroup.add(dot);
+      }
+    }
+
+    function buildParticles() {
+      particleGroup = new THREE.Group();
+      scene.add(particleGroup);
+      const pCount = 350;
+      const posArray = new Float32Array(pCount * 3);
+      for (let i = 0; i < pCount * 3; i += 3) {
+        posArray[i] = (Math.random() - 0.5) * 80;
+        posArray[i + 1] = Math.random() * 28;
+        posArray[i + 2] = (Math.random() - 0.5) * 80;
+      }
+      const pGeo = new THREE.BufferGeometry();
+      pGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      const pMat = new THREE.PointsMaterial({ size: 0.16, color: 0x38bdf8, transparent: true, opacity: 0.55 });
+      const particles = new THREE.Points(pGeo, pMat);
+      particleGroup.add(particles);
+    }
+
+    function spawnNodes() {
+      const nodeDefs = [
+        { id: 1, name: "Algorithmic Scout #14", role: "Frontline Tactical Observer", type: "scout", pos: new THREE.Vector3(0, 1.2, 5), color: 0x06b6d4, emoji: "📡" },
+        { id: 2, name: "EuroTactics Pod #09", role: "Regional Syndicate Hub", type: "hub", pos: new THREE.Vector3(-12, 1.2, -6), color: 0xf59e0b, emoji: "🛡️" },
+        { id: 3, name: "Apex Strategist #88", role: "Orthogonal Prediction Node", type: "strategist", pos: new THREE.Vector3(14, 1.2, -4), color: 0x10b981, emoji: "🎯" },
+        { id: 4, name: "Astroturf Bot #01", role: "Suspected Byzantine Sybil", type: "sybil", pos: new THREE.Vector3(7, 1.2, -16), color: 0xf43f5e, emoji: "⚠️" },
+        { id: 5, name: "Legacy Gatekeeper Hub", role: "Monopolistic Central Boss", type: "boss", pos: new THREE.Vector3(-18, 1.4, 8), color: 0xa855f7, emoji: "👑" },
+        { id: 6, name: "Astroturf Bot #02", role: "Suspected Byzantine Sybil", type: "sybil", pos: new THREE.Vector3(-8, 1.2, -18), color: 0xf43f5e, emoji: "⚠️" },
+        { id: 7, name: "Astroturf Bot #03", role: "Suspected Byzantine Sybil", type: "sybil", pos: new THREE.Vector3(16, 1.2, 12), color: 0xf43f5e, emoji: "⚠️" }
+      ];
+
+      radarBlipsContainer = document.getElementById('radarBlips');
+      radarBlipsContainer.innerHTML = '';
+
+      nodeDefs.forEach(def => {
+        const group = new THREE.Group();
+        group.position.copy(def.pos);
+
+        const baseGeo = new THREE.CylinderGeometry(0.9, 1.2, 0.45, 16);
+        const baseMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4 });
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.position.y = -1.0;
+        group.add(base);
+
+        const polyGeo = def.type === 'boss' ? new THREE.DodecahedronGeometry(1.2, 0) : new THREE.OctahedronGeometry(0.85, 0);
+        const polyMat = new THREE.MeshStandardMaterial({
+          color: def.color,
+          emissive: def.color,
+          emissiveIntensity: 0.65,
+          roughness: 0.15
+        });
+        const avatar = new THREE.Mesh(polyGeo, polyMat);
+        avatar.position.y = 0.4;
+        group.add(avatar);
+
+        const light = new THREE.PointLight(def.color, 1.5, 9);
+        light.position.y = 1.1;
+        group.add(light);
+
+        scene.add(group);
+        def.meshGroup = group;
+        def.avatarMesh = avatar;
+        interactiveNodes.push(def);
+
+        // Add blip to radar
+        const blip = document.createElement('div');
+        blip.className = "absolute w-2 h-2 rounded-full -translate-x-1/2 -translate-y-1/2";
+        blip.style.backgroundColor = '#' + def.color.toString(16).padStart(6, '0');
+        blip.id = 'blip_' + def.id;
+        radarBlipsContainer.appendChild(blip);
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 5. Input & Physics Engine (Smooth Momentum & Headlamp)
+    // --------------------------------------------------------------------------
+    function setupInputHandlers() {
+      window.addEventListener('keydown', (e) => {
+        initAudio();
+        const k = e.key.toLowerCase();
+        if (k === 'w') movement.keys.w = true;
+        if (k === 'a') movement.keys.a = true;
+        if (k === 's') movement.keys.s = true;
+        if (k === 'd') movement.keys.d = true;
+        if (k === 'shift') movement.keys.shift = true;
+        if (k === 'c') toggleCrouch();
+        if (k === ' ') {
+          if (camera.position.y <= 1.7) {
+            movement.velocity.y = 6.2;
+            soundJump();
+          }
+        }
+        if (k === 'e') triggerInteraction();
+        if (k === 'q') triggerRadarScan();
+        if (k === 'f') toggleFlashlight();
+      });
+
+      window.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'w') movement.keys.w = false;
+        if (k === 'a') movement.keys.a = false;
+        if (k === 's') movement.keys.s = false;
+        if (k === 'd') movement.keys.d = false;
+        if (k === 'shift') movement.keys.shift = false;
+      });
+
+      // Mouse Look Drag
+      let isDragging = false;
+      let prevX = 0, prevY = 0;
+
+      window.addEventListener('mousedown', (e) => {
+        initAudio();
+        if (e.target.closest('header, aside, footer, #dialogueModal, #helpModal')) return;
+        isDragging = true;
+        prevX = e.clientX;
+        prevY = e.clientY;
+      });
+
+      window.addEventListener('mouseup', () => { isDragging = false; });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - prevX;
+        const dy = e.clientY - prevY;
+        prevX = e.clientX;
+        prevY = e.clientY;
+
+        gameState.player.yaw -= dx * 0.0035;
+        gameState.player.pitch -= dy * 0.0035;
+        gameState.player.pitch = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, gameState.player.pitch));
+      });
+
+      // Mobile Touch Controls
+      const setupBtn = (id, prop) => {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); initAudio(); movement.touch[prop] = true; });
+        el.addEventListener('touchend', (e) => { e.preventDefault(); movement.touch[prop] = false; });
+      };
+      setupBtn('btnMobileFwd', 'forward');
+      setupBtn('btnMobileBack', 'backward');
+      setupBtn('btnMobileLeft', 'left');
+      setupBtn('btnMobileRight', 'right');
+    }
+
+    function toggleCrouch() {
+      movement.isCrouching = !movement.isCrouching;
+      soundFootstep();
+    }
+
+    function toggleFlashlight() {
+      gameState.flashlight = !gameState.flashlight;
+      headlampLight.intensity = gameState.flashlight ? 2.8 : 0;
+      soundFlashlight();
+      showToast(gameState.flashlight ? "Flashlight: ON" : "Flashlight: OFF");
+    }
+
+    function triggerRadarScan() {
+      soundSonarPing();
+      showToast("RADAR PING: Scanning all 360° node signatures...");
+      // Visual pulse
+      const ring = document.getElementById('reticleRing');
+      ring.classList.add('scale-150', 'border-cyan-300');
+      setTimeout(() => ring.classList.remove('scale-150', 'border-cyan-300'), 400);
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. Physics Simulation & Render Loop
+    // --------------------------------------------------------------------------
+    let clock = new THREE.Clock();
+
+    function animateLoop() {
+      requestAnimationFrame(animateLoop);
+      const delta = Math.min(clock.getDelta(), 0.1);
+
+      // Node polyhedra rotation
+      interactiveNodes.forEach(n => {
+        if (n.avatarMesh) {
+          n.avatarMesh.rotation.y += delta * 1.4;
+          n.avatarMesh.rotation.x += delta * 0.7;
+        }
+      });
+
+      if (geodesicMeshGroup) geodesicMeshGroup.rotation.y += delta * 0.07;
+      if (particleGroup) particleGroup.rotation.y += delta * 0.025;
+
+      if (viewMode === 'player') {
+        updatePhysics(delta);
+        checkNodeProximity();
+        updateRadar();
+      } else {
+        updateScopeOrbit(delta);
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    function updatePhysics(delta) {
+      const isSprinting = movement.keys.shift;
+      const speed = movement.isCrouching ? 4.5 : (isSprinting ? 14.0 : 8.5);
+
+      const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), gameState.player.yaw);
+      const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), gameState.player.yaw);
+
+      const moveDir = new THREE.Vector3();
+      if (movement.keys.w || movement.touch.forward) moveDir.add(forward);
+      if (movement.keys.s || movement.touch.backward) moveDir.sub(forward);
+      if (movement.keys.d || movement.touch.right) moveDir.add(right);
+      if (movement.keys.a || movement.touch.left) moveDir.sub(right);
+
+      if (moveDir.lengthSq() > 0) {
+        moveDir.normalize();
+        gameState.player.pos.x += moveDir.x * speed * delta;
+        gameState.player.pos.z += moveDir.z * speed * delta;
+
+        // Footstep sounds
+        movement.stepTimer += delta * (isSprinting ? 1.6 : 1.0);
+        if (movement.stepTimer > 0.42) {
+          soundFootstep();
+          movement.stepTimer = 0;
+        }
+
+        // Circular boundary limit
+        const dist = Math.sqrt(gameState.player.pos.x ** 2 + gameState.player.pos.z ** 2);
+        if (dist > 40) {
+          gameState.player.pos.x = (gameState.player.pos.x / dist) * 40;
+          gameState.player.pos.z = (gameState.player.pos.z / dist) * 40;
+        }
+      }
+
+      // Vertical gravity
+      const targetEyeHeight = movement.isCrouching ? 0.95 : 1.6;
+      movement.velocity.y -= 15.0 * delta;
+      gameState.player.pos.y += movement.velocity.y * delta;
+      if (gameState.player.pos.y < targetEyeHeight) {
+        if (movement.velocity.y < -3.0) soundLand();
+        gameState.player.pos.y = targetEyeHeight;
+        movement.velocity.y = 0;
+      }
+
+      // Sync camera & headlamp
+      camera.position.set(gameState.player.pos.x, gameState.player.pos.y, gameState.player.pos.z);
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = gameState.player.yaw;
+      camera.rotation.x = gameState.player.pitch;
+
+      headlampLight.position.copy(camera.position);
+      const targetPos = new THREE.Vector3(0, 0, -5).applyMatrix4(camera.matrixWorld);
+      headlampLight.target.position.copy(targetPos);
+    }
+
+    let scopeAngle = 0;
+    function updateScopeOrbit(delta) {
+      scopeAngle += delta * 0.22;
+      const camDist = 52;
+      const camHeight = 36;
+      camera.position.set(Math.sin(scopeAngle) * camDist, camHeight, Math.cos(scopeAngle) * camDist);
+      camera.lookAt(0, 12, 0);
+    }
+
+    function checkNodeProximity() {
+      let nearest = null;
+      let minDistance = 3.8;
+
+      for (let n of interactiveNodes) {
+        const d = camera.position.distanceTo(n.pos);
+        if (d < minDistance) {
+          nearest = n;
+          break;
+        }
+      }
+
+      const prompt = document.getElementById('interactPrompt');
+      const targetText = document.getElementById('interactTargetName');
+
+      if (nearest) {
+        currentTargetNode = nearest;
+        targetText.textContent = nearest.name;
+        prompt.classList.remove('hidden');
+      } else {
+        currentTargetNode = null;
+        prompt.classList.add('hidden');
+      }
+    }
+
+    function updateRadar() {
+      const radarRadius = 55; // Pixels
+      const arenaRadius = 42; // Units
+
+      interactiveNodes.forEach(n => {
+        const blip = document.getElementById('blip_' + n.id);
+        if (!blip) return;
+
+        // Relative coordinates rotated to player yaw
+        const relX = n.pos.x - gameState.player.pos.x;
+        const relZ = n.pos.z - gameState.player.pos.z;
+
+        const cosYaw = Math.cos(-gameState.player.yaw);
+        const sinYaw = Math.sin(-gameState.player.yaw);
+
+        const rotX = relX * cosYaw - relZ * sinYaw;
+        const rotZ = relX * sinYaw + relZ * cosYaw;
+
+        const screenX = 55 + (rotX / arenaRadius) * radarRadius;
+        const screenY = 55 + (rotZ / arenaRadius) * radarRadius;
+
+        blip.style.left = screenX + 'px';
+        blip.style.top = screenY + 'px';
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 7. Interaction & Progressive Storyline Engine
+    // --------------------------------------------------------------------------
+    const dialogueModal = document.getElementById('dialogueModal');
+    const modalNodeName = document.getElementById('modalNodeName');
+    const modalNodeRole = document.getElementById('modalNodeRole');
+    const modalDialogueText = document.getElementById('modalDialogueText');
+    const modalAvatarRing = document.getElementById('modalAvatarRing');
+    const modalFeedback = document.getElementById('modalFeedback');
+
+    function triggerInteraction() {
+      if (!currentTargetNode) return;
+      soundChime();
+      const node = currentTargetNode;
+
+      modalNodeName.textContent = node.name;
+      modalNodeRole.textContent = node.role;
+      modalAvatarRing.textContent = node.emoji;
+      modalFeedback.classList.add('hidden');
+
+      if (node.type === 'sybil') {
+        modalDialogueText.textContent = "ATTENTION PLAYER: We are an astroturf bot deployed by incumbent corporate sponsors. We flood the network with identical synthetic vectors to dilute grassroots tournament power!";
+      } else if (node.type === 'boss') {
+        if (gameState.player.psi >= 1.0) {
+          modalDialogueText.textContent = "IMPOSSIBLE! You have decoupled! (Ψ = " + gameState.player.psi.toFixed(2) + "). The peer network no longer routes through my monopoly! The tournament is free!";
+        } else {
+          modalDialogueText.textContent = "I am the Legacy Gatekeeper Hub. All prize pools and broadcast licenses flow through me. Hand over your raw metrics, or you will not be featured on the keynote stage!";
+        }
+      } else {
+        modalDialogueText.textContent = `Greetings, Edge Fighter! I am ${node.name}. Our decentralized pod pools tactical signals. By Scott Page's Diversity Prediction Theorem, our combined diversity reduces collective error to near zero. Ready to sync?`;
+      }
+
+      dialogueModal.classList.remove('hidden');
+    }
+
+    // Modal Action Buttons
+    document.getElementById('btnActionExchange').addEventListener('click', () => {
+      soundSonarPing();
+      gameState.player.frs = Math.min(99.4, gameState.player.frs + 3.5);
+      gameState.player.signalsTransmitted += 1;
+      
+      // Storyline Progress Check
+      if (gameState.questIndex === 1 && currentTargetNode.type === 'scout') {
+        advanceStoryAct(2, "2: WEAVING THE LATTICE", "2. Achieve Reciprocal Uplift", "Visit EuroTactics Pod #09 to claim your first automated counter-playbook (Rf > 1.0).", 50);
+      }
+
+      modalFeedback.textContent = "Frontline telemetry verified! Quadratic weighting applied. Arena error reduced by 14%!";
+      modalFeedback.classList.remove('hidden');
+
+      broadcastSignal("Telemetry Upload", `Verified operational signal shared with ${currentTargetNode.name}`);
+      updateHUD();
+      autoSaveState();
+    });
+
+    document.getElementById('btnActionPlaybook').addEventListener('click', () => {
+      soundSuccess();
+      gameState.player.rf = Math.min(4.8, gameState.player.rf + 0.45);
+      gameState.player.playbooks += 1;
+
+      if (gameState.questIndex === 2) {
+        advanceStoryAct(3, "3: ASTROTURF INVASION", "3. Neutralize 3 Byzantine Sybil Bots", "Run Byzantine integrity audits on the glowing rose bots in the outer perimeter.", 75);
+      }
+
+      modalFeedback.textContent = "Reciprocal playbook unlocked! Automated tactical playbook added to capability bag. Rf surplus = " + gameState.player.rf.toFixed(2) + "x!";
+      modalFeedback.classList.remove('hidden');
+
+      broadcastSignal("Playbook Claimed", `Squad playbook unlocked from ${currentTargetNode.name}`);
+      updateHUD();
+      autoSaveState();
+    });
+
+    document.getElementById('btnActionAudit').addEventListener('click', () => {
+      soundAlarm();
+      if (currentTargetNode.type === 'sybil') {
+        modalFeedback.textContent = "AUDIT FAILED: Zero orthogonality & decaying Brier score detected! Quadratic weight dropped to 0.001. Bot neutralized!";
+        currentTargetNode.avatarMesh.material.color.setHex(0x334155); // Disabled gray
+        currentTargetNode.type = 'neutralized';
+        gameState.player.sybilsNeutralized += 1;
+
+        if (gameState.player.sybilsNeutralized >= 3 && gameState.questIndex === 3) {
+          advanceStoryAct(4, "4: DECOUPLING TRANSCENDENCE", "4. Confront Legacy Gatekeeper Boss", "Approach the Gatekeeper Hub (purple diamond) and trigger network decoupling (Ψ > 1.0).", 100);
+          gameState.player.psi = 84.5; // Trigger decoupling escape velocity
+        }
+      } else {
+        modalFeedback.textContent = "AUDIT PASSED: High Brier score calibration (κ = 0.92). Legitimate peer verified!";
+      }
+      modalFeedback.classList.remove('hidden');
+      updateHUD();
+      autoSaveState();
+    });
+
+    document.getElementById('btnCloseModal').addEventListener('click', () => {
+      dialogueModal.classList.add('hidden');
+    });
+
+    function advanceStoryAct(actNum, actTitle, questTitle, questDesc, progressPct) {
+      gameState.act = actNum;
+      gameState.actTitle = actTitle;
+      gameState.questIndex = actNum;
+      gameState.questTitle = questTitle;
+      gameState.questDesc = questDesc;
+      gameState.questProgressPct = progressPct;
+
+      soundSuccess();
+      showToast(`🏆 CHAPTER ADVANCED: ${actTitle}`);
+      addChatMessage("League Quest", `New Story Objective: ${questTitle}`);
+      updateHUD();
+    }
+
+    function updateHUD() {
+      document.getElementById('hudActTitle').textContent = gameState.actTitle;
+      document.getElementById('hudFRS').textContent = gameState.player.frs.toFixed(1);
+      document.getElementById('hudRf').textContent = `${gameState.player.rf.toFixed(2)}x Rf`;
+      document.getElementById('hudPsi').textContent = `${gameState.player.psi.toFixed(2)} Ψ`;
+
+      document.getElementById('activeQuestTitle').textContent = gameState.questTitle;
+      document.getElementById('activeQuestDesc').innerHTML = gameState.questDesc;
+      document.getElementById('questProgressBar').style.width = `${gameState.questProgressPct}%`;
+
+      document.getElementById('invPlaybooks').textContent = gameState.player.playbooks;
+      document.getElementById('invSybils').textContent = `${gameState.player.sybilsNeutralized} / 3`;
+      document.getElementById('invOrthogonality').textContent = gameState.player.orthogonality.toFixed(2);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('gameToast');
+      document.getElementById('toastMessage').textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
+
+    // --------------------------------------------------------------------------
+    // 8. Memory Save State Engine (LocalStorage + Export/Import JSON File)
+    // --------------------------------------------------------------------------
+    function autoSaveState() {
+      try {
+        localStorage.setItem('geokat_savestate_v1', JSON.stringify(gameState));
+      } catch (e) {}
+    }
+
+    // Export save file (.json)
+    document.getElementById('btnSaveState').addEventListener('click', () => {
+      initAudio();
+      soundChime();
+      const jsonString = JSON.stringify(gameState, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `geokat_save_act${gameState.act}_frs${Math.round(gameState.player.frs)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("💾 Save State exported as .JSON file!");
+    });
+
+    // Import save file (.json)
+    document.getElementById('btnLoadState').addEventListener('click', () => {
+      initAudio();
+      document.getElementById('fileStateInput').click();
+    });
+
+    document.getElementById('fileStateInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const loaded = JSON.parse(event.target.result);
+          gameState = Object.assign(gameState, loaded);
+          camera.position.set(gameState.player.pos.x, gameState.player.pos.y, gameState.player.pos.z);
+          updateHUD();
+          autoSaveState();
+          soundSuccess();
+          showToast(`📂 Loaded Save State: ${gameState.actTitle}`);
+        } catch (err) {
+          showToast("❌ Error loading save file: Invalid JSON format.");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // --------------------------------------------------------------------------
+    // 9. Comms Feed & UI Controls
+    // --------------------------------------------------------------------------
+    function addChatMessage(author, text) {
+      const feed = document.getElementById('chatFeed');
+      const div = document.createElement('div');
+      div.className = "bg-slate-900/60 p-2 rounded-lg border-l-2 border-cyan-400 animate-fade-in";
+      div.innerHTML = `<span class="text-cyan-400 font-bold">[${author}]:</span><p class="text-slate-300 text-[11px] mt-0.5">${text}</p>`;
+      feed.appendChild(div);
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function broadcastSignal(topic, text) {
+      addChatMessage("You (Edge Node)", text);
+      if (p2pChannel) {
+        p2pChannel.postMessage({
+          type: 'SIGNAL_BROADCAST',
+          sender: 'You',
+          topic: topic,
+          text: text
+        });
+      }
+    }
+
+    document.getElementById('btnSendSignal').addEventListener('click', () => {
+      const input = document.getElementById('chatInput');
+      if (input.value.trim() !== '') {
+        initAudio();
+        soundSonarPing();
+        const text = input.value.trim();
+        addChatMessage("You (Edge Node)", text);
+        if (p2pChannel) {
+          p2pChannel.postMessage({ type: 'CHAT', sender: 'You', text: text });
+        }
+        input.value = '';
+      }
+    });
+
+    document.getElementById('chatInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btnSendSignal').click();
+    });
+
+    document.getElementById('btnQuickInteract').addEventListener('click', triggerInteraction);
+
+    // View Switcher (Ground First-Person vs. Macro Geodesic Orbit)
+    document.getElementById('btnViewToggle').addEventListener('click', () => {
+      initAudio();
+      soundSuccess();
+      const text = document.getElementById('viewModeText');
+      const reticle = document.getElementById('reticle');
+
+      if (viewMode === 'player') {
+        viewMode = 'scope';
+        text.textContent = "ARENA POV";
+        reticle.classList.add('hidden');
+        showToast("TRANSCENDENCE MODE: Viewing Macro Geodesic Collective");
+      } else {
+        viewMode = 'player';
+        text.textContent = "SCOPE OUT";
+        reticle.classList.remove('hidden');
+        camera.position.set(gameState.player.pos.x, gameState.player.pos.y, gameState.player.pos.z);
+        showToast("GROUND POV: Arena Floor Exploration");
+      }
+    });
+
+    // Scanner & Flashlight buttons in header
+    document.getElementById('btnScanner').addEventListener('click', triggerRadarScan);
+    document.getElementById('btnFlashlight').addEventListener('click', toggleFlashlight);
+
+    // Sound Toggle
+    document.getElementById('btnSoundToggle').addEventListener('click', () => {
+      initAudio();
+      soundEnabled = !soundEnabled;
+      document.getElementById('btnSoundToggle').textContent = soundEnabled ? "🔊 ON" : "🔇 OFF";
+    });
+
+    // Help & Manifesto Modal
+    const helpModal = document.getElementById('helpModal');
+    document.getElementById('btnHelp').addEventListener('click', () => {
+      initAudio();
+      helpModal.classList.remove('hidden');
+    });
+    document.getElementById('btnCloseHelp').addEventListener('click', () => {
+      helpModal.classList.add('hidden');
+    });
+    document.getElementById('btnStartGame').addEventListener('click', () => {
+      initAudio();
+      soundSuccess();
+      helpModal.classList.add('hidden');
+    });
+
+    // Boot
+    window.onload = () => {
+      initThreeJS();
+    };
+  </script>
+</body>
+</html>

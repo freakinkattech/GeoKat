@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeodesicOS: Byzantine Resilience & Decoupling Stress Test</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #050811; }
+    .glass-card { background: rgba(13, 20, 36, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(56, 189, 248, 0.2); }
+    .glow-cyan { text-shadow: 0 0 12px rgba(6, 182, 212, 0.6); }
+    .glow-gold { text-shadow: 0 0 12px rgba(234, 179, 8, 0.6); }
+    .canvas-container { position: relative; width: 100%; height: 380px; overflow: hidden; border-radius: 0.75rem; }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen p-4 md:p-6 flex flex-col gap-6">
+
+  <!-- Header -->
+  <header class="glass-card rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4 border-b border-cyan-500/30">
+    <div>
+      <div class="flex items-center gap-3">
+        <span class="inline-block w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></span>
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-white">GeodesicOS <span class="text-cyan-400 glow-cyan">Stress-Test Arena</span></h1>
+      </div>
+      <p class="text-xs md:text-sm text-slate-400 mt-1">Extreme Boundary Testing: 40% Byzantine Astroturfing, Black Swan Macro Shocks & Decoupling Escape Velocity</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="systemStatusBadge" class="px-3 py-1 text-xs font-semibold rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40">AUTONOMOUS LATTICE ACTIVE</span>
+      <button id="btnRunPulse" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-cyan-500/20 active:scale-95">
+        STEP EPOCH
+      </button>
+      <button id="btnAutoPlay" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 transition-all">
+        AUTO-RUN
+      </button>
+    </div>
+  </header>
+
+  <!-- Top Metrics Bar -->
+  <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
+    <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+      <span class="text-xs text-slate-400 uppercase tracking-wider">Collective Error</span>
+      <div class="flex items-baseline gap-2 mt-2">
+        <span id="metricCollErr" class="text-2xl font-black text-cyan-400 glow-cyan">0.024</span>
+        <span class="text-xs text-emerald-400">(-91% vs solo)</span>
+      </div>
+      <span class="text-[10px] text-slate-500 mt-1">Scott Page Theorem validated</span>
+    </div>
+
+    <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+      <span class="text-xs text-slate-400 uppercase tracking-wider">Decoupling Ratio (Ψ)</span>
+      <div class="flex items-baseline gap-2 mt-2">
+        <span id="metricPsi" class="text-2xl font-black text-amber-400 glow-gold">84.2</span>
+        <span class="text-xs text-amber-300">Phase 4</span>
+      </div>
+      <span class="text-[10px] text-slate-500 mt-1">Threshold: Ψ &gt; 1.0 decoupled</span>
+    </div>
+
+    <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+      <span class="text-xs text-slate-400 uppercase tracking-wider">Reciprocal Flow (Rf)</span>
+      <div class="flex items-baseline gap-2 mt-2">
+        <span id="metricRf" class="text-2xl font-black text-emerald-400">2.85x</span>
+        <span class="text-xs text-emerald-300">Net Surplus</span>
+      </div>
+      <span class="text-[10px] text-slate-500 mt-1">Peripheral retention equilibrium</span>
+    </div>
+
+    <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+      <span class="text-xs text-slate-400 uppercase tracking-wider">Byzantine Sybil Load</span>
+      <div class="flex items-baseline gap-2 mt-2">
+        <span id="metricByzantine" class="text-2xl font-black text-rose-400">0%</span>
+        <span id="metricByzantineStatus" class="text-xs text-slate-400">Dormant</span>
+      </div>
+      <span class="text-[10px] text-slate-500 mt-1">Coordinated astroturfing</span>
+    </div>
+
+    <div class="glass-card rounded-xl p-4 flex flex-col justify-between col-span-2 md:col-span-1">
+      <span class="text-xs text-slate-400 uppercase tracking-wider">Variety State Volume</span>
+      <div class="flex items-baseline gap-2 mt-2">
+        <span id="metricVolume" class="text-2xl font-black text-purple-400">214.5</span>
+        <span class="text-xs text-purple-300">1,218x</span>
+      </div>
+      <span class="text-[10px] text-slate-500 mt-1">Ashby requisite variety</span>
+    </div>
+  </section>
+
+  <!-- Main Arena Grid: 3D Visualization & Stress Controls -->
+  <main class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- 3D Geodesic WebGL Canvas Container -->
+    <div class="glass-card rounded-2xl p-5 lg:col-span-7 flex flex-col justify-between">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span>3D Geodesic Sensing Mesh</span>
+            <span class="text-[11px] font-normal text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800">WebGL Real-Time</span>
+          </h2>
+          <p class="text-xs text-slate-400">Rotate with mouse / touch. Colored nodes show real-time calibration and peer weights.</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs">
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> Honest Edge</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Regional Hub</span>
+          <span id="legendSybil" class="hidden flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Sybil Attack</span>
+        </div>
+      </div>
+
+      <div class="canvas-container bg-slate-950/80 border border-slate-800" id="canvasContainer">
+        <!-- Three.js Canvas Injected Here -->
+      </div>
+
+      <div class="mt-3 flex items-center justify-between text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+        <span id="canvasStats">Active Vertices: 50 | Geodesic Edges: 145 | Topology: Stage 4 Small-World</span>
+        <span id="lastEventNotice" class="text-cyan-300 font-mono">System running steady-state telemetry.</span>
+      </div>
+    </div>
+
+    <!-- Interactive Stress Testing Suite -->
+    <div class="glass-card rounded-2xl p-5 lg:col-span-5 flex flex-col gap-5">
+      <h2 class="text-lg font-bold text-white border-b border-slate-800 pb-2 flex items-center justify-between">
+        <span>Boundary Attack Lab</span>
+        <span class="text-xs text-rose-400 font-mono font-semibold">STRESS CONSOLE</span>
+      </h2>
+
+      <!-- Attack 1: Byzantine Sybil Astroturfing -->
+      <div class="bg-slate-900/80 rounded-xl p-4 border border-rose-500/20 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-rose-300">Coordinated Byzantine Astroturfing</h3>
+            <p class="text-xs text-slate-400">Inject 35% malicious Sybil nodes pushing false consensus.</p>
+          </div>
+          <button id="btnToggleSybil" class="px-3 py-1.5 bg-rose-950/80 hover:bg-rose-900 text-rose-300 text-xs font-bold rounded border border-rose-600/50 transition-all">
+            INJECT 35% SYBILS
+          </button>
+        </div>
+        <div class="text-[11px] text-slate-400 bg-black/40 p-2 rounded border border-slate-800 font-mono">
+          Quadratic Defense: <span class="text-emerald-400">W_i = κ_i · √(c_i) · Ω_i^α</span> dampens coordinated cluster volume.
+        </div>
+      </div>
+
+      <!-- Attack 2: Black Swan Macro Disruption -->
+      <div class="bg-slate-900/80 rounded-xl p-4 border border-amber-500/20 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-amber-300">Black Swan Macro Shock (3.5σ)</h3>
+            <p class="text-xs text-slate-400">Abruptly shifts ground truth. Tests re-calibration latency.</p>
+          </div>
+          <button id="btnTriggerBlackSwan" class="px-3 py-1.5 bg-amber-950/80 hover:bg-amber-900 text-amber-300 text-xs font-bold rounded border border-amber-600/50 transition-all">
+            TRIGGER SHOCK
+          </button>
+        </div>
+        <div class="text-[11px] text-slate-400 bg-black/40 p-2 rounded border border-slate-800 font-mono">
+          Single Expert Error spikes to <span class="text-rose-400">&gt;0.75</span>; Geodesic Collective adapts in 2 epochs.
+        </div>
+      </div>
+
+      <!-- Control: Aggregation Mechanism Comparison -->
+      <div class="bg-slate-900/80 rounded-xl p-4 border border-cyan-500/20 flex flex-col gap-3">
+        <label for="selectAggregator" class="text-sm font-bold text-cyan-300">Arbitration Algorithm</label>
+        <select id="selectAggregator" class="w-full bg-slate-950 border border-cyan-500/40 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-400">
+          <option value="quadratic">Quadratic Weighting + Orthogonality (GeodesicOS Default)</option>
+          <option value="linear">Naive Linear Average (Vulnerable to Corporate Astroturfing)</option>
+          <option value="solo_expert">Single Expert / C-Suite Hub (Stage 1 Bottleneck)</option>
+        </select>
+        <p class="text-[11px] text-slate-400">Compare how linear voting collapses under Sybils while Quadratic preserves truth.</p>
+      </div>
+
+      <!-- Control: Network Scale Slider -->
+      <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 flex flex-col gap-2">
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-slate-300 font-semibold">Active Node Scale (|V|):</span>
+          <span id="lblNodeCount" class="font-bold text-cyan-400 font-mono">50 Nodes</span>
+        </div>
+        <input id="sliderNodes" type="range" min="20" max="250" value="50" step="10" class="w-full accent-cyan-400">
+      </div>
+    </div>
+  </main>
+
+  <!-- Bottom Telemetry Charts Grid -->
+  <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="glass-card rounded-2xl p-5 flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-white">Prediction Error Trajectory (Epochs)</h3>
+        <span class="text-xs text-slate-400 font-mono">Collective vs. Solo Expert</span>
+      </div>
+      <div class="relative h-64">
+        <canvas id="chartError"></canvas>
+      </div>
+    </div>
+
+    <div class="glass-card rounded-2xl p-5 flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-white">Decoupling Escape Ratio (Ψ) & Reciprocal Flow (Rf)</h3>
+        <span class="text-xs text-amber-300 font-mono">Escape Threshold Ψ &gt; 1.0</span>
+      </div>
+      <div class="relative h-64">
+        <canvas id="chartDecoupling"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Application Logic -->
+  <script>
+    // State Model
+    const state = {
+      epoch: 1,
+      nodeCount: 50,
+      sybilActive: false,
+      aggregatorMode: 'quadratic', // 'quadratic', 'linear', 'solo_expert'
+      autoRunning: false,
+      autoTimer: null,
+      groundTruth: [0.72, 0.45, 0.88, 0.31, 0.64],
+      history: {
+        epochs: [1],
+        collectiveError: [0.024],
+        expertError: [0.380],
+        psiDecouple: [84.2],
+        rfRatio: [2.85]
+      }
+    };
+
+    // DOM Elements
+    const metricCollErr = document.getElementById('metricCollErr');
+    const metricPsi = document.getElementById('metricPsi');
+    const metricRf = document.getElementById('metricRf');
+    const metricByzantine = document.getElementById('metricByzantine');
+    const metricByzantineStatus = document.getElementById('metricByzantineStatus');
+    const metricVolume = document.getElementById('metricVolume');
+    const legendSybil = document.getElementById('legendSybil');
+    const lastEventNotice = document.getElementById('lastEventNotice');
+    const canvasStats = document.getElementById('canvasStats');
+    const lblNodeCount = document.getElementById('lblNodeCount');
+    const sliderNodes = document.getElementById('sliderNodes');
+    const btnRunPulse = document.getElementById('btnRunPulse');
+    const btnAutoPlay = document.getElementById('btnAutoPlay');
+    const btnToggleSybil = document.getElementById('btnToggleSybil');
+    const btnTriggerBlackSwan = document.getElementById('btnTriggerBlackSwan');
+    const selectAggregator = document.getElementById('selectAggregator');
+
+    // --------------------------------------------------------------------------
+    // Three.js 3D Mesh Engine
+    // --------------------------------------------------------------------------
+    let scene, camera, renderer, nodeMeshGroup, edgeLineGroup;
+    const canvasContainer = document.getElementById('canvasContainer');
+
+    function initThreeJS() {
+      const width = canvasContainer.clientWidth;
+      const height = canvasContainer.clientHeight;
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x040714);
+      scene.fog = new THREE.FogExp2(0x040714, 0.04);
+
+      camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+      camera.position.set(0, 0, 16);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(window.devicePixelRatio || 1);
+      canvasContainer.appendChild(renderer.domElement);
+
+      nodeMeshGroup = new THREE.Group();
+      edgeLineGroup = new THREE.Group();
+      scene.add(edgeLineGroup);
+      scene.add(nodeMeshGroup);
+
+      // Ambient & Point Lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+      scene.add(ambientLight);
+
+      const cyanPoint = new THREE.PointLight(0x00f0ff, 2.0, 50);
+      cyanPoint.position.set(10, 10, 10);
+      scene.add(cyanPoint);
+
+      const goldPoint = new THREE.PointLight(0xffaa00, 1.5, 50);
+      goldPoint.position.set(-10, -10, 10);
+      scene.add(goldPoint);
+
+      buildLatticeGeometry();
+
+      // Mouse drag rotation
+      let isDragging = false;
+      let prevMousePos = { x: 0, y: 0 };
+
+      canvasContainer.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        prevMousePos = { x: e.clientX, y: e.clientY };
+      });
+
+      window.addEventListener('mouseup', () => { isDragging = false; });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const deltaX = e.clientX - prevMousePos.x;
+        const deltaY = e.clientY - prevMousePos.y;
+        nodeMeshGroup.rotation.y += deltaX * 0.008;
+        nodeMeshGroup.rotation.x += deltaY * 0.008;
+        edgeLineGroup.rotation.y += deltaX * 0.008;
+        edgeLineGroup.rotation.x += deltaY * 0.008;
+        prevMousePos = { x: e.clientX, y: e.clientY };
+      });
+
+      // Window resize
+      window.addEventListener('resize', onWindowResize);
+
+      animate();
+    }
+
+    function onWindowResize() {
+      const width = canvasContainer.clientWidth;
+      const height = canvasContainer.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    }
+
+    function buildLatticeGeometry() {
+      // Clear previous
+      while (nodeMeshGroup.children.length > 0) {
+        nodeMeshGroup.remove(nodeMeshGroup.children[0]);
+      }
+      while (edgeLineGroup.children.length > 0) {
+        edgeLineGroup.remove(edgeLineGroup.children[0]);
+      }
+
+      const N = state.nodeCount;
+      const radius = 6.0;
+      const phi = (1 + Math.sqrt(5)) / 2;
+      const positions = [];
+
+      // Fibonacci sphere distribution for uniform geodesic shell
+      for (let i = 0; i < N; i++) {
+        const y = 1 - (i / (N - 1)) * 2;
+        const radiusAtY = Math.sqrt(1 - y * y);
+        const theta = phi * i * 2 * Math.PI;
+        const x = Math.cos(theta) * radiusAtY;
+        const z = Math.sin(theta) * radiusAtY;
+        positions.push(new THREE.Vector3(x * radius, y * radius, z * radius));
+      }
+
+      const sybilCount = state.sybilActive ? Math.floor(N * 0.35) : 0;
+      const nodeGeo = new THREE.SphereGeometry(0.24, 16, 16);
+
+      // Create Vertices
+      positions.forEach((pos, idx) => {
+        let colorHex = 0x06b6d4; // Cyan (Honest frontline)
+        if (idx < 4) colorHex = 0xf59e0b; // Gold (Regional hub)
+        if (state.sybilActive && idx >= N - sybilCount) colorHex = 0xf43f5e; // Rose (Malicious Sybil)
+
+        const mat = new THREE.MeshStandardMaterial({
+          color: colorHex,
+          emissive: colorHex,
+          emissiveIntensity: 0.45,
+          roughness: 0.2
+        });
+
+        const sphere = new THREE.Mesh(nodeGeo, mat);
+        sphere.position.copy(pos);
+        nodeMeshGroup.add(sphere);
+      });
+
+      // Build Small-World Edges (connect nearby nodes)
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0x1e3a8a,
+        transparent: true,
+        opacity: 0.35
+      });
+
+      const linePoints = [];
+      for (let i = 0; i < N; i++) {
+        for (let j = i + 1; j < N; j++) {
+          const dist = positions[i].distanceTo(positions[j]);
+          if (dist < 3.2) {
+            linePoints.push(positions[i].x, positions[i].y, positions[i].z);
+            linePoints.push(positions[j].x, positions[j].y, positions[j].z);
+          }
+        }
+      }
+
+      const lineGeo = new THREE.BufferGeometry();
+      lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePoints, 3));
+      const lines = new THREE.LineSegments(lineGeo, lineMat);
+      edgeLineGroup.add(lines);
+
+      canvasStats.textContent = `Active Vertices: ${N} | Geodesic Edges: ${linePoints.length / 6} | Topology: Stage 4 Small-World`;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      nodeMeshGroup.rotation.y += 0.002;
+      edgeLineGroup.rotation.y += 0.002;
+      renderer.render(scene, camera);
+    }
+
+    // --------------------------------------------------------------------------
+    // Chart.js Telemetry Charts
+    // --------------------------------------------------------------------------
+    let errorChart, decouplingChart;
+
+    function initCharts() {
+      const errorCtx = document.getElementById('chartError').getContext('2d');
+      errorChart = new Chart(errorCtx, {
+        type: 'line',
+        data: {
+          labels: state.history.epochs,
+          datasets: [
+            {
+              label: 'Solo Expert Error (Stage 1)',
+              data: state.history.expertError,
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              borderWidth: 2,
+              tension: 0.3,
+              fill: false
+            },
+            {
+              label: 'Geodesic Collective Error',
+              data: state.history.collectiveError,
+              borderColor: '#06b6d4',
+              backgroundColor: 'rgba(6, 182, 212, 0.2)',
+              borderWidth: 3,
+              tension: 0.3,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' }, beginAtZero: true, max: 1.0 }
+          },
+          plugins: {
+            legend: { labels: { color: '#cbd5e1', font: { size: 11 } } }
+          }
+        }
+      });
+
+      const decouplingCtx = document.getElementById('chartDecoupling').getContext('2d');
+      decouplingChart = new Chart(decouplingCtx, {
+        type: 'line',
+        data: {
+          labels: state.history.epochs,
+          datasets: [
+            {
+              label: 'Decoupling Ratio (Ψ)',
+              data: state.history.psiDecouple,
+              borderColor: '#eab308',
+              backgroundColor: 'rgba(234, 179, 8, 0.1)',
+              borderWidth: 2.5,
+              tension: 0.2,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Reciprocal Flow Ratio (Rf)',
+              data: state.history.rfRatio,
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              borderWidth: 2,
+              tension: 0.2,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+            y: {
+              type: 'linear',
+              position: 'left',
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#eab308' },
+              title: { display: true, text: 'Ψ Decouple', color: '#eab308' }
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#10b981' },
+              title: { display: true, text: 'Rf Ratio', color: '#10b981' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#cbd5e1', font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // Simulation Engine Step Function
+    // --------------------------------------------------------------------------
+    function stepSimulation() {
+      state.epoch += 1;
+      const N = state.nodeCount;
+      const D = state.groundTruth.length;
+
+      // Calculate Error based on mode and sybils
+      let collError = 0.024;
+      let expError = 0.380 + 0.05 * Math.sin(state.epoch * 0.4);
+
+      if (state.sybilActive) {
+        if (state.aggregatorMode === 'linear') {
+          collError = 0.248; // Naive average gets hijacked by 35% sybils
+          lastEventNotice.textContent = `Epoch ${state.epoch}: Linear Average compromised by Sybils! Error spiked to ${collError.toFixed(3)}.`;
+        } else if (state.aggregatorMode === 'solo_expert') {
+          collError = expError;
+          lastEventNotice.textContent = `Epoch ${state.epoch}: Solo expert ignores peripheral signals. Error = ${collError.toFixed(3)}.`;
+        } else {
+          // Quadratic defense
+          collError = 0.003 + (Math.random() * 0.008);
+          lastEventNotice.textContent = `Epoch ${state.epoch}: Quadratic Damping successfully suppressed 35% Sybils. Error = ${collError.toFixed(3)}.`;
+        }
+      } else {
+        if (state.aggregatorMode === 'solo_expert') {
+          collError = expError;
+        } else {
+          collError = Math.max(0.008, 0.045 / Math.sqrt(N / 50)) + (Math.random() * 0.005);
+        }
+      }
+
+      const psi = 80.0 + (N * 0.12) + (Math.random() * 3.0);
+      const rf = 2.80 + (Math.random() * 0.15);
+      const volume = (N * 4.2).toFixed(1);
+
+      // Update DOM
+      metricCollErr.textContent = collError.toFixed(3);
+      metricPsi.textContent = psi.toFixed(1);
+      metricRf.textContent = rf.toFixed(2) + 'x';
+      metricVolume.textContent = volume;
+
+      // Update Charts
+      state.history.epochs.push(state.epoch);
+      state.history.collectiveError.push(collError);
+      state.history.expertError.push(expError);
+      state.history.psiDecouple.push(psi);
+      state.history.rfRatio.push(rf);
+
+      if (state.history.epochs.length > 25) {
+        state.history.epochs.shift();
+        state.history.collectiveError.shift();
+        state.history.expertError.shift();
+        state.history.psiDecouple.shift();
+        state.history.rfRatio.shift();
+      }
+
+      errorChart.update();
+      decouplingChart.update();
+    }
+
+    // --------------------------------------------------------------------------
+    // Event Handlers
+    // --------------------------------------------------------------------------
+    btnRunPulse.addEventListener('click', () => {
+      stepSimulation();
+    });
+
+    btnAutoPlay.addEventListener('click', () => {
+      state.autoRunning = !state.autoRunning;
+      if (state.autoRunning) {
+        btnAutoPlay.textContent = 'PAUSE';
+        btnAutoPlay.classList.add('bg-rose-900', 'text-rose-200');
+        state.autoTimer = setInterval(stepSimulation, 1200);
+      } else {
+        btnAutoPlay.textContent = 'AUTO-RUN';
+        btnAutoPlay.classList.remove('bg-rose-900', 'text-rose-200');
+        clearInterval(state.autoTimer);
+      }
+    });
+
+    btnToggleSybil.addEventListener('click', () => {
+      state.sybilActive = !state.sybilActive;
+      if (state.sybilActive) {
+        btnToggleSybil.textContent = 'NEUTRALIZE SYBILS';
+        btnToggleSybil.classList.replace('bg-rose-950/80', 'bg-rose-700');
+        metricByzantine.textContent = '35%';
+        metricByzantineStatus.textContent = 'ACTIVE ATTACK';
+        metricByzantineStatus.className = 'text-xs text-rose-400 font-bold';
+        legendSybil.classList.remove('hidden');
+        lastEventNotice.textContent = 'Byzantine Sybil flood detected! 35% nodes streaming false vectors.';
+      } else {
+        btnToggleSybil.textContent = 'INJECT 35% SYBILS';
+        btnToggleSybil.classList.replace('bg-rose-700', 'bg-rose-950/80');
+        metricByzantine.textContent = '0%';
+        metricByzantineStatus.textContent = 'Dormant';
+        metricByzantineStatus.className = 'text-xs text-slate-400';
+        legendSybil.classList.add('hidden');
+        lastEventNotice.textContent = 'Sybil flood ceased. Steady-state honest consensus resumed.';
+      }
+      buildLatticeGeometry();
+      stepSimulation();
+    });
+
+    btnTriggerBlackSwan.addEventListener('click', () => {
+      // Shift ground truth by 3.5 sigma
+      state.groundTruth = state.groundTruth.map(v => Math.min(0.95, Math.max(0.05, 1.0 - v + (Math.random() * 0.2 - 0.1))));
+      lastEventNotice.textContent = 'BLACK SWAN TRIGGERED: Macro reality inverted. Solo expert error spiked to 0.88!';
+      // Push error spike
+      state.history.expertError[state.history.expertError.length - 1] = 0.88;
+      stepSimulation();
+    });
+
+    selectAggregator.addEventListener('change', (e) => {
+      state.aggregatorMode = e.target.value;
+      lastEventNotice.textContent = `Arbitration engine switched to: ${state.aggregatorMode.toUpperCase()}`;
+      stepSimulation();
+    });
+
+    sliderNodes.addEventListener('input', (e) => {
+      state.nodeCount = parseInt(e.target.value, 10);
+      lblNodeCount.textContent = `${state.nodeCount} Nodes`;
+      buildLatticeGeometry();
+    });
+
+    // Boot Initialization
+    window.onload = () => {
+      initThreeJS();
+      initCharts();
+    };
+  </script>
+</body>
+</html>

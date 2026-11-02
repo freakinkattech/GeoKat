@@ -1,0 +1,74 @@
+[
+  {
+    "stage_id": 1,
+    "stage_name": "Stage 1: Centralized Star",
+    "effective_collective_error": 0.14182742305347326,
+    "mean_individual_error": 0.5147372617076504,
+    "prediction_diversity": 0.4859647144342538,
+    "error_reduction_pct": 94.41024588390138,
+    "algebraic_connectivity_lambda2": 0.9999999999999991,
+    "avg_path_length": 1.96,
+    "reciprocal_flow_ratio": 0.45,
+    "psi_decoupling_ratio": 0.0,
+    "coords_XYZ": [
+      25.51,
+      4.86,
+      7.05
+    ],
+    "phase_volume": 36.61
+  },
+  {
+    "stage_id": 2,
+    "stage_name": "Stage 2: Clustered Multi-Hub",
+    "effective_collective_error": 0.16469384373098656,
+    "mean_individual_error": 0.5348593710994183,
+    "prediction_diversity": 0.5042582620348894,
+    "error_reduction_pct": 94.27866263208074,
+    "algebraic_connectivity_lambda2": 0.0769230769230769,
+    "avg_path_length": 2.859591836734694,
+    "reciprocal_flow_ratio": 0.95,
+    "psi_decoupling_ratio": 0.0,
+    "coords_XYZ": [
+      17.49,
+      5.04,
+      6.07
+    ],
+    "phase_volume": 22.42
+  },
+  {
+    "stage_id": 3,
+    "stage_name": "Stage 3: Hybrid Collective (AI Core)",
+    "effective_collective_error": 0.05317657511478975,
+    "mean_individual_error": 0.4861298213639514,
+    "prediction_diversity": 0.4658525064719339,
+    "error_reduction_pct": 95.82882719782036,
+    "algebraic_connectivity_lambda2": 0.05739061064852169,
+    "avg_path_length": 3.2889795918367346,
+    "reciprocal_flow_ratio": 1.8,
+    "psi_decoupling_ratio": 0.0,
+    "coords_XYZ": [
+      15.2,
+      4.66,
+      18.81
+    ],
+    "phase_volume": 55.79
+  },
+  {
+    "stage_id": 4,
+    "stage_name": "Stage 4: Geodesic Small-World Lattice",
+    "effective_collective_error": 0.09019633724381004,
+    "mean_individual_error": 0.49270500949608653,
+    "prediction_diversity": 0.4818278428675689,
+    "error_reduction_pct": 97.79235720788748,
+    "algebraic_connectivity_lambda2": 0.13678935270756315,
+    "avg_path_length": 2.629387755102041,
+    "reciprocal_flow_ratio": 2.85,
+    "psi_decoupling_ratio": 81.86640656702849,
+    "coords_XYZ": [
+      19.02,
+      4.82,
+      11.09
+    ],
+    "phase_volume": 42.55
+  }
+]
